@@ -14,8 +14,8 @@ height = st.sidebar.number_input("Height (cm)", min_value=50, max_value=250, val
 has_diabetes = st.sidebar.selectbox("Family History of Diabetes?", ["Yes", "No"])
 
 st.sidebar.markdown("---")
-with st.sidebar.expander("ℹ️ App Ke Baare Mein"):
-    st.write("Yeh ek AI Health Predictor app hai jo Machine Learning aur Asli AI (Gemini) ka use karta hai.")
+with st.sidebar.expander("ℹ️ About"):
+    st.write("This is an AI health predictor app that uses machine learning and real AI..")
     
 st.sidebar.header("🩺 Doctor's Notes")
 doc_notes = st.sidebar.text_area("Add any notes here:")
@@ -26,7 +26,7 @@ tab1, tab2, tab3, tab4 = st.tabs(["📊 Prediction", "🤖 Chatbot", "🥗 Diet"
 # TAB 1: Prediction
 with tab1:
     st.header("Health Predictor")
-    st.subheader("Purana Data")
+    st.subheader("Privious Blood Sugar Record ")
     
     # CSV se purana data load karne ka try karein
     try:
@@ -37,13 +37,13 @@ with tab1:
     except:
         st.warning("Abhi koi purana data nahi mila hai.")
         
-    st.subheader("Naya Health Prediction")
+    st.subheader("New Health Prediction")
     if st.button("Predict My Health"):
         try:
             # ML Model Load Karna
             with open('diabetes_model.pkl', 'rb') as f:
                 model = pickle.load(f)
-            st.success("Model successfully run ho gaya! (Aapka health score predict ho gaya hai)")
+            st.success("Model successfully run ho gaya! (your health score predicted)")
             st.balloons()
         except:
             st.success("Aapka ML Model properly work kar raha hai!")
@@ -51,10 +51,10 @@ with tab1:
 
 # TAB 2: Gemini AI Chatbot
 with tab2:
-    st.header("🤖 Asli AI Health Assistant")
-    st.write("Ab aap mujhse health, diet ya exercise se juda kuch bhi pooch sakte hain!")
+    st.header("🤖  AI Health Assistant")
+    st.write("Ask any questionabout health, diet and exercise!")
     
-    user_message = st.text_input("Apna sawal likhein (e.g., 'Diabetes mein kaun se fal khayein?'):")
+    user_message = st.text_input("Ask")
     
     if user_message:
         try:
