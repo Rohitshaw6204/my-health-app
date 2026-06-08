@@ -1,12 +1,13 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import pickle
 import google.generativeai as genai
 
 # 1. PAGE CONFIGURATION
 st.set_page_config(page_title="GlucoseGuard Dashboard", layout="wide")
 
-# Configure Google Gemini AI
+# Setup Google Gemini AI configuration
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel('gemini-pro')
@@ -24,63 +25,70 @@ st.sidebar.markdown("---")
 st.sidebar.header("🩺 Doctor Portal")
 doc_notes = st.sidebar.text_area("Doctor's Advice", "Keep daily carbs under 50g and walk daily.")
 
-# 3. MAIN DASHBOARD
+# 3. MAIN DASHBOARD - TABS
 st.title("🩸 GlucoseGuard: AI Health Predictor")
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard & Predictor", "🤖 AI Chatbot", "🥗 Meal & Exercise", "🚨 Alerts"])
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard & Predictor", "🤖 AI Chatbot", "🥗 Meal & Exercise", "⚠️ Alerts"])
 
-# TAB 1: DASHBOARD & PREDICTOR
+# TAB 1: DASHBOARD & ML PREDICTION
 with tab1:
     st.header("Health Predictor Dashboard")
     
-    # Logic for calculating predicted blood sugar based on inputs
-    predicted_sugar = 110 + (age * 0.2) + (weight * 0.1)
-    if has_diabetes != "Non-Diabetic":
-        predicted_sugar += 30
+    # Load patient history from CSV
+    try:
+        df = pd.read_csv("patient_data.csv")
+        df.set_index('Date', inplace=True)
+        st.line_chart(df)
+    except FileNotFoundError:
+        st.warning("Historical record not found (patient_data.csv missing).")
+        
+    st.subheader("🔮 AI Glucose Prediction")
+    if st.button("Predict My Blood Sugar"):
+        diabetes_mapping = {"Non-Diabetic": 0, "Type 1": 1, "Type 2": 2}
+        status_num = diabetes_mapping[has_diabetes]
+        
+        try:
+            with open('diabetes_model.pkl', 'rb') as file:
+                model_ml = pickle.load(file)
+            
+            user_data = pd.DataFrame([[age, weight, height, status_num]], columns=model_ml.feature_names_in_)
+            predicted_sugar = model_ml.predict(user_data)[0]
+            
+            # Attractive metric display
+            col1, col2 = st.columns(2)
+            col1.metric(label="Predicted Fasting Blood Sugar", value=f"{round(predicted_sugar, 1)} mg/dL")
+            col2.metric(label="Health Risk Score", value="Low" if predicted_sugar < 140 else "High")
+            st.balloons()
+            
+        except Exception as e:
+            st.error(f"Prediction Error: {e}")
 
-    # Displaying metrics using columns for an attractive UI
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric(label="Predicted Next Fasting Blood Sugar", value=f"{round(predicted_sugar, 1)} mg/dL")
-    with col2:
-        health_score = 85 if predicted_sugar < 140 else 60
-        st.metric(label="Daily Health Score", value=f"{health_score}/100")
-
-    st.subheader("Recent Blood Sugar Trend")
-    # Generating dummy chart data for visualization
-    chart_data = pd.DataFrame(np.random.randint(90, 150, size=(7, 1)), columns=['Blood Sugar (mg/dL)'])
-    st.line_chart(chart_data)
-
-# TAB 2: AI CHATBOT
+# TAB 2: AI CHATBOT INTEGRATION
 with tab2:
     st.header("🤖 AI Health Assistant")
-    st.write("Ask any question about health, diet, and exercise!")
+    st.write("Ask any question about diabetes management.")
     
-    user_message = st.text_input("Ask your question:")
-    # Triggering AI response on button click
+    user_query = st.text_input("Ask your health question:")
     if st.button("Get AI Advice"):
-        if user_message:
+        if user_query:
             try:
-                response = model.generate_content(user_message)
-                st.markdown(f"**AI Assistant:** {response.text}")
+                response = model.generate_content(user_query)
+                st.success(f"**AI Assistant:** {response.text}")
             except Exception as e:
-                st.error("AI connection error. Please check your API key.")
+                st.error("AI connection error. Please check your API Key.")
 
-# TAB 3: MEAL & EXERCISE
+# TAB 3: MEAL & EXERCISE GUIDE
 with tab3:
-    st.header("🥗 Meal & Exercise Plan")
+    st.header("🥗 Blood Sugar Maintenance Guide")
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Recommended Meal Plan")
-        st.markdown("* **Breakfast:** Oats with nuts.\n* **Lunch:** Dal, sabzi, salad, and 1 multigrain roti.\n* **Dinner:** Grilled paneer/chicken or boiled vegetables.")
+        st.markdown("* **Breakfast:** Oats with nuts.\n* **Lunch:** Dal, sabzi, salad, and multigrain roti.\n* **Dinner:** Grilled paneer or boiled vegetables.")
     with col2:
         st.subheader("Daily Exercise Guide")
-        st.markdown("* **Activity:** 20-30 minutes brisk walk after meals.\n* **Benefit:** Helps in natural sugar control.")
+        st.markdown("* **Activity:** 20-30 minutes brisk walk after meals.\n* **Benefit:** Helps in maintaining natural blood sugar levels.")
 
 # TAB 4: ALERTS
 with tab4:
-    st.header("🚨 Live Smart Alerts")
-    # Conditional logic for health alerts
-    if predicted_sugar > 140:
-        st.error(f"⚠️ **Alert:** Your predicted blood sugar ({round(predicted_sugar, 1)} mg/dL) is high. Please consult your doctor.")
-    else:
-        st.success("✅ **Status:** Your sugar level is stable. Good job!")
+    st.header("⚠️ Live Smart Alerts")
+    st.info("Your daily health score: **85/100**. Keep it up!")
+    st.warning("🔔 Reminder: Ensure you take your medication on time.")
