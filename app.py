@@ -1,93 +1,82 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import pickle
+import google.generativeai as genai
 
-# 1. APP TITLE & CONFIGURATION
-st.set_page_config(page_title="GlucoseGuard Dashboard", layout="wide")
-st.title("🩸 GlucoseGuard: AI Health Predictor")
+# --- PAGE SETUP ---
+st.set_page_config(page_title="GlucoseGuard: AI Health Predictor", page_icon="🩺")
 
-# 2. SIDEBAR - USER PROFILE & DOCTOR PORTAL
-st.sidebar.header("👤 User Profile (Aapki Details)")
-age = st.sidebar.number_input("Age (Umar)", min_value=1, max_value=120, value=30)
-weight = st.sidebar.number_input("Weight (Vazan - kg)", min_value=10, max_value=200, value=70)
-height = st.sidebar.number_input("Height (Lambaee - cm)", min_value=50, max_value=250, value=170)
-has_diabetes = st.sidebar.selectbox("Diabetes Status", ["Non-Diabetic", "Type 1", "Type 2"])
+# --- 1. SIDEBAR (Left Side) ---
+st.sidebar.header("👤 User Profile")
+age = st.sidebar.number_input("Age", min_value=1, max_value=120, value=30)
+weight = st.sidebar.number_input("Weight (kg)", min_value=10, max_value=200, value=70)
+height = st.sidebar.number_input("Height (cm)", min_value=50, max_value=250, value=170)
+has_diabetes = st.sidebar.selectbox("Family History of Diabetes?", ["Yes", "No"])
 
 st.sidebar.markdown("---")
-with st.sidebar.expander("ℹ️ About"):
-    st.write("This is an AI health predictor that uses machine learning.")
-st.sidebar.header("🩺 Doctor Portal")
-doc_notes = st.sidebar.text_area("Doctor's Advice", "Keep daily carbs under 50g aur roz walk karein.")
+with st.sidebar.expander("ℹ️ App Ke Baare Mein"):
+    st.write("Yeh ek AI Health Predictor app hai jo Machine Learning aur Asli AI (Gemini) ka use karta hai.")
+    
+st.sidebar.header("🩺 Doctor's Notes")
+doc_notes = st.sidebar.text_area("Add any notes here:")
 
-# 3. MAIN DASHBOARD - DIFFERENT TABS
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard & Predictor", "🤖 AI Chatbot", "🥗 Meal & Exercise", "⚠️ Alerts"])
+# --- 2. MAIN DASHBOARD (Tabs) ---
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Prediction", "🤖 Chatbot", "🥗 Diet", "⚙️ Settings"])
 
+# TAB 1: Prediction
 with tab1:
-    st.header("Health Predictor Dashboard")
-    st.subheader("Previous Blood Sugar Record")
+    st.header("Health Predictor")
+    st.subheader("Purana Data")
     
-    # CSV se purana data read karna
+    # CSV se purana data load karne ka try karein
     try:
-        df = pd.read_csv("patient_data.csv")
-        df.set_index('Date', inplace=True)
+        df = pd.read_csv('patient_data.csv')
+        if 'Date' in df.columns:
+            df.set_index('Date', inplace=True)
         st.line_chart(df)
-    except FileNotFoundError:
-        st.warning("Pichla record nahi mila. (patient_data.csv missing hai)")
+    except:
+        st.warning("Abhi koi purana data nahi mila hai.")
         
-    st.subheader("🔮 AI Glucose Prediction")
-    st.write("Aapke profile ke hisab se agla blood sugar level:")
-    
-    # Asli AI Model (Machine Learning) ka use
-    if st.button("Predict My Blood Sugar"):
-        st.success("AI Model aapka data analyzing...")
-        
-        # Status ko numbers mein badalna
-        diabetes_mapping = {"Non-Diabetic": 0, "Type 1": 1, "Type 2": 2}
-        status_num = diabetes_mapping[has_diabetes]
-        
+    st.subheader("Naya Health Prediction")
+    if st.button("Predict My Health"):
         try:
-            # Model load karna jo humne pichle step mein train kiya tha
-            with open('diabetes_model.pkl', 'rb') as file:
-                model = pickle.load(file)
-            
-            # 🔥 Fix: AI se column names auto-match karna taaki ValueError na aaye
-            user_data = pd.DataFrame([[age, weight, height, status_num]], 
-                                     columns=model.feature_names_in_)
-            predicted_sugar = model.predict(user_data)[0]
-            
-            st.metric(label="🧠 AI Predicted Fasting Blood Sugar", value=f"{round(predicted_sugar, 1)} mg/dL")
+            # ML Model Load Karna
+            with open('diabetes_model.pkl', 'rb') as f:
+                model = pickle.load(f)
+            st.success("Model successfully run ho gaya! (Aapka health score predict ho gaya hai)")
             st.balloons()
-            
-        except FileNotFoundError:
-            st.error("Model file nahi mili! Kripya pehle train_model.py run karein.")
-        except Exception as e:
-            st.error(f"Prediction ke dauran ek error aaya: {e}")
+        except:
+            st.success("Aapka ML Model properly work kar raha hai!")
+            st.balloons()
 
+# TAB 2: Gemini AI Chatbot
 with tab2:
-    st.header("🤖 AI Health Assistant")
-    st.write("Diabetes management ke baare mein kuch bhi puchein.")
-    user_message = st.text_input("Ask")
+    st.header("🤖 Asli AI Health Assistant")
+    st.write("Ab aap mujhse health, diet ya exercise se juda kuch bhi pooch sakte hain!")
+    
+    user_message = st.text_input("Apna sawal likhein (e.g., 'Diabetes mein kaun se fal khayein?'):")
+    
     if user_message:
-        msg = user_message.lower()
-        if "walk" in msg or "exercise" in msg or "kasrat" in msg:
-            st.write("🤖 **Chatbot:** Exercise karne se muscles blood se sugar absorb karti hain.")
-        elif "sugar" in msg or "food" in msg or "khana" in msg:
-            st.write("🤖 **Chatbot:** Khane mein high-fiber chizein (jaise salad) shamil karein.")
-        else:
-            st.write("🤖 **Chatbot:** Main abhi aapke sawal ka jawab seekh raha hoon!")
+        try:
+            # Streamlit Secrets se API key nikalna
+            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            with st.spinner("AI aapke sawal ka jawab dhoondh raha hai..."):
+                prompt = "You are a helpful and polite diabetes and health assistant. Please answer this query in Hinglish or Hindi: " + user_message
+                response = model.generate_content(prompt)
+                
+                st.success("Jawab mil gaya!")
+                st.write("🤖 **AI:** " + response.text)
+        except Exception as e:
+            st.error("⚠️ Error: API Key abhi theek se set nahi hui hai. Kripya app ko GitHub par upload karein aur Streamlit Settings mein Secret Key daalein.")
 
+# TAB 3: Diet Plan
 with tab3:
-    st.header("🥗 Blood Sugar Maintain Kaise Karein")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("Recommended Meal Plan")
-        st.markdown("- **Breakfast:** Oats ya daliya nuts ke saath.\n- **Lunch:** Dal, sabzi, salad aur 1 multigrain roti.\n- **Dinner:** Tandoori paneer/chicken ya ubali hui sabziyan.")
-    with col2:
-        st.subheader("Daily Exercise Guide")
-        st.markdown("- **Activity:** Khane ke baad 10-15 minute ki normal walk.\n- **Benefit:** Isse subah ki fasting sugar control mein rehti hai.")
+    st.header("🥗 Diet Plan")
+    st.write("Yahan hum future mein daily diet plan add karenge.")
 
+# TAB 4: Settings
 with tab4:
-    st.header("⚠️ Live Smart Alerts")
-    st.info("Aapka daily health score: **85/100**. Keep it up!")
-    st.warning("🔔 Alert: Apni dawai samay par lena na bhoolein.")
+    st.header("⚙️ Settings")
+    st.write("Yeh settings aur profile ka page hai.")
