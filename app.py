@@ -65,13 +65,20 @@ with tab3:
     st.header("🥗 Maintenance Guide")
     st.markdown("- **Diet:** High fiber, low carb.\n- **Exercise:** 30 min brisk walk.")
 
-# TAB 4: ALERTS (Real-time logic)
-with tab4:
-    st.header("🚨 Smart Alerts")
-    # Real-time alert logic
-    if 'sugar' in locals() and sugar > 180:
-        st.error("🚨 CRITICAL: High sugar detected! Consult doctor.")
-    elif 'med_status' in locals() and med_status == "No":
-        st.warning("🔔 REMINDER: Did you take your medicine? Please check.")
-    else:
-        st.success("✅ Status: Looking good!")
+import sqlite3
+
+def init_db():
+    conn = sqlite3.connect('medical_data.db')
+    c = conn.cursor()
+    # Pipes hata di hain aur lines sahi kar di hain
+    c.execute('''CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS records (username TEXT, date TEXT, sugar REAL, med_status TEXT)''')
+    conn.commit()
+    conn.close()
+
+def add_record(username, date, sugar, med_status):
+    conn = sqlite3.connect('medical_data.db')
+    c = conn.cursor()
+    c.execute("INSERT INTO records VALUES (?, ?, ?, ?)", (username, date, sugar, med_status))
+    conn.commit()
+    conn.close()
