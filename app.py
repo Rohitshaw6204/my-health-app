@@ -65,20 +65,27 @@ with tab3:
     st.header("🥗 Maintenance Guide")
     st.markdown("- **Diet:** High fiber, low carb.\n- **Exercise:** 30 min brisk walk.")
 
-import sqlite3
-
-def init_db():
+# TAB 4: ALERTS (Real-time logic)
+with tab4:
+    st.header("🚨 Live Smart Alerts")
+    
+    # Database se latest record uthayein
+    import sqlite3
     conn = sqlite3.connect('medical_data.db')
-    c = conn.cursor()
-    # Pipes hata di hain aur lines sahi kar di hain
-    c.execute('''CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS records (username TEXT, date TEXT, sugar REAL, med_status TEXT)''')
-    conn.commit()
+    # Sabse latest entry (ORDER BY date DESC LIMIT 1)
+    df_latest = pd.read_sql_query("SELECT * FROM records ORDER BY ROWID DESC LIMIT 1", conn)
     conn.close()
 
-def add_record(username, date, sugar, med_status):
-    conn = sqlite3.connect('medical_data.db')
-    c = conn.cursor()
-    c.execute("INSERT INTO records VALUES (?, ?, ?, ?)", (username, date, sugar, med_status))
-    conn.commit()
-    conn.close()
+    if not df_latest.empty:
+        last_sugar = df_latest.iloc[0]['sugar']
+        last_med = df_latest.iloc[0]['med_status']
+        
+        # Professional Alert Logic
+        if last_sugar > 180:
+            st.error(f"🚨 CRITICAL: Your last sugar level was {last_sugar}. Please consult your doctor!")
+        elif last_med == "No":
+            st.warning("🔔 REMINDER: You marked 'No' for your last medicine entry. Please take it!")
+        else:
+            st.success("✅ Status: Your health record looks stable!")
+    else:
+        st.info("No records found yet. Please submit your first entry in the Dashboard.")
